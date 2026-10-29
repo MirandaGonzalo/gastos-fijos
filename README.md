@@ -1,12 +1,12 @@
 # Gastos fijos
 
-[![Frontend CI](https://github.com/TU_USUARIO/gastos-fijos/actions/workflows/frontend.yml/badge.svg)](https://github.com/TU_USUARIO/gastos-fijos/actions/workflows/frontend.yml)
-[![Backend CI](https://github.com/TU_USUARIO/gastos-fijos/actions/workflows/backend.yml/badge.svg)](https://github.com/TU_USUARIO/gastos-fijos/actions/workflows/backend.yml)
-[![Docker](https://github.com/TU_USUARIO/gastos-fijos/actions/workflows/docker.yml/badge.svg)](https://github.com/TU_USUARIO/gastos-fijos/actions/workflows/docker.yml)
+[![Frontend CI](https://github.com/MirandaGonzalo/gastos-fijos/actions/workflows/frontend.yml/badge.svg)](https://github.com/MirandaGonzalo/gastos-fijos/actions/workflows/frontend.yml)
+[![Backend CI](https://github.com/MirandaGonzalo/gastos-fijos/actions/workflows/backend.yml/badge.svg)](https://github.com/MirandaGonzalo/gastos-fijos/actions/workflows/backend.yml)
+[![Docker](https://github.com/MirandaGonzalo/gastos-fijos/actions/workflows/docker.yml/badge.svg)](https://github.com/MirandaGonzalo/gastos-fijos/actions/workflows/docker.yml)
 
 App full stack para llevar el control de los **gastos fijos del mes**: qué se debita solo, qué hay que pagar antes de que venza, cuánto pagaste cada mes y **cuánto fue subiendo cada servicio**. Pensada para Argentina: pesos y dólares, con la cotización real a la que compraste.
 
-![Inicio](docs/capturas/inicio.png)
+<!-- Captura principal: ![Inicio](docs/capturas/inicio.png) -->
 
 ## Qué hace
 
@@ -17,9 +17,7 @@ App full stack para llevar el control de los **gastos fijos del mes**: qué se d
 - **Gastos**: alta, edición y baja, con reglas que protegen el historial (un gasto con pagos no se borra: se da de baja).
 - **Cotización del dólar** en vivo desde [DolarApi](https://dolarapi.com), con caché y fallback.
 
-| Pagos | Calendario | Análisis |
-|---|---|---|
-| ![Pagos](docs/capturas/pagos.png) | ![Calendario](docs/capturas/calendario.png) | ![Análisis](docs/capturas/analisis.png) |
+<!-- Capturas: Pagos, Calendario y Análisis en docs/capturas/ -->
 
 ## Stack
 
