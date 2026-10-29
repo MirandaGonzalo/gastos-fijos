@@ -2,9 +2,10 @@ name: Frontend CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, release, testing, develop]
     paths: ['frontend/**', '.github/workflows/frontend.yml']
   pull_request:
+    branches: [main, release, testing, develop]
     paths: ['frontend/**', '.github/workflows/frontend.yml']
 
 # Si llega un push nuevo a la misma rama, cancela la corrida anterior

@@ -1,10 +1,12 @@
 name: Docker
 
+# Prueba pesada (imágenes + stack completo): corre desde testing en adelante
 on:
   push:
-    branches: [main]
+    branches: [main, release, testing]
     paths: ['frontend/**', 'backend/**', 'docker-compose.yml', '.github/workflows/docker.yml']
   pull_request:
+    branches: [main, release, testing]
     paths: ['frontend/**', 'backend/**', 'docker-compose.yml', '.github/workflows/docker.yml']
 
 concurrency:

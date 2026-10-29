@@ -1,0 +1,101 @@
+name: Versionado
+
+# Cada push a una rama de entorno crea un tag x.y.z:
+#   develop -> patch (x.y.Z)   cambios en desarrollo
+#   release -> minor (x.Y.0)   versión candidata para el entorno de despliegue (+ GitHub Release "pre-release")
+#   main    -> major (X.0.0)   versión estable (+ GitHub Release)
+# testing no versiona: es la etapa de pruebas intensivas.
+on:
+  push:
+    branches: [main, release, develop]
+
+# Nunca dos versionados a la vez: evita que dos merges seguidos calculen la misma versión
+concurrency:
+  group: versionado
+  cancel-in-progress: false
+
+permissions:
+  contents: write # crear tags y releases con el token propio de Actions (sin token personal)
+
+jobs:
+  tag-version:
+    name: Calcular y publicar versión
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout con todo el historial y los tags
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configurar Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      # Si el commit ya tiene versión (ej.: al crear una rama nueva desde main), no se versiona de nuevo
+      - name: ¿El commit ya tiene versión?
+        id: check
+        run: |
+          existing=$(git tag --points-at HEAD | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | head -n 1 || true)
+          if [ -n "$existing" ]; then
+            echo "El commit ya tiene la versión $existing. No se crea otra."
+            echo "### Sin cambios: el commit ya es la versión $existing" >> "$GITHUB_STEP_SUMMARY"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Último tag x.y.z
+        id: last
+        if: steps.check.outputs.skip != 'true'
+        run: |
+          # Solo tags con formato x.y.z (ignora cualquier otro tag)
+          tag=$(git tag -l '[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | head -n 1 || true)
+          echo "Último tag: ${tag:-ninguno}"
+          echo "tag=${tag:-0.0.0}" >> "$GITHUB_OUTPUT"
+
+      - name: Calcular nueva versión
+        id: version
+        if: steps.check.outputs.skip != 'true'
+        run: |
+          IFS='.' read -r major minor patch <<< "${{ steps.last.outputs.tag }}"
+          case "${GITHUB_REF_NAME}" in
+            main)    major=$((major + 1)); minor=0; patch=0 ;;
+            release) minor=$((minor + 1)); patch=0 ;;
+            *)       patch=$((patch + 1)) ;;
+          esac
+          echo "Nueva versión: $major.$minor.$patch (rama ${GITHUB_REF_NAME})"
+          echo "tag=$major.$minor.$patch" >> "$GITHUB_OUTPUT"
+
+      - name: Crear y subir el tag
+        if: steps.check.outputs.skip != 'true'
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            echo "El tag $TAG ya existe. No se crea de nuevo."
+          else
+            git tag -a "$TAG" -m "Versión $TAG (${GITHUB_REF_NAME})"
+            git push origin "$TAG"
+          fi
+
+      - name: Crear GitHub Release
+        if: steps.check.outputs.skip != 'true' && (github.ref_name == 'release' || github.ref_name == 'main')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "El release $TAG ya existe."
+            exit 0
+          fi
+          FLAGS="--generate-notes"
+          if [ "${GITHUB_REF_NAME}" = "release" ]; then
+            FLAGS="$FLAGS --prerelease --title $TAG-candidata"
+          else
+            FLAGS="$FLAGS --latest --title $TAG"
+          fi
+          gh release create "$TAG" --target "$GITHUB_SHA" $FLAGS
+
+      - name: Resumen
+        if: steps.check.outputs.skip != 'true'
+        run: |
+          echo "### Versión ${{ steps.version.outputs.tag }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Rama: \`${GITHUB_REF_NAME}\` · anterior: \`${{ steps.last.outputs.tag }}\`" >> "$GITHUB_STEP_SUMMARY"
