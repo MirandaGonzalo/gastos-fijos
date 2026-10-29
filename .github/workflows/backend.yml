@@ -1,12 +1,12 @@
 name: Backend CI
 
+# En los PRs corre siempre (puede ser un check obligatorio); en los push, solo si cambió su parte
 on:
   push:
     branches: [main, release, testing, develop]
     paths: ['backend/**', '.github/workflows/backend.yml']
   pull_request:
     branches: [main, release, testing, develop]
-    paths: ['backend/**', '.github/workflows/backend.yml']
 
 concurrency:
   group: backend-${{ github.ref }}

@@ -1,12 +1,12 @@
 name: Frontend CI
 
+# En los PRs corre siempre (puede ser un check obligatorio); en los push, solo si cambió su parte
 on:
   push:
     branches: [main, release, testing, develop]
     paths: ['frontend/**', '.github/workflows/frontend.yml']
   pull_request:
     branches: [main, release, testing, develop]
-    paths: ['frontend/**', '.github/workflows/frontend.yml']
 
 # Si llega un push nuevo a la misma rama, cancela la corrida anterior
 concurrency:
