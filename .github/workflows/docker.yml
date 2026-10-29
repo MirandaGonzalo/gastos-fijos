@@ -1,0 +1,67 @@
+name: Docker
+
+on:
+  push:
+    branches: [main]
+    paths: ['frontend/**', 'backend/**', 'docker-compose.yml', '.github/workflows/docker.yml']
+  pull_request:
+    paths: ['frontend/**', 'backend/**', 'docker-compose.yml', '.github/workflows/docker.yml']
+
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Construye las imágenes de producción (con caché entre corridas)
+  images:
+    name: Imagen ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [frontend, backend]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: ./${{ matrix.service }}
+          push: false
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
+  # Levanta todo el stack en modo demo y prueba que funcione de punta a punta:
+  # nginx -> API -> Postgres, con migraciones y datos de demo
+  stack:
+    name: Stack completo (modo demo)
+    runs-on: ubuntu-latest
+    needs: images
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Levantar el stack
+        run: docker compose --profile demo up -d --build
+
+      - name: Esperar a que la API responda a través de nginx
+        run: |
+          for i in $(seq 1 60); do
+            curl -sf http://localhost:5191/api/categories > /dev/null && echo "Listo en ${i}s" && exit 0
+            sleep 2
+          done
+          echo "La app no respondió a tiempo" && exit 1
+
+      - name: Probar la app
+        run: |
+          set -e
+          curl -sf http://localhost:5191/ | grep -q '<div id="root">' && echo "Front OK"
+          curl -sf http://localhost:5191/pagos | grep -q '<div id="root">' && echo "Rutas del SPA OK"
+          GASTOS=$(curl -sf http://localhost:5191/api/expenses | grep -o '"id":' | wc -l)
+          echo "Gastos de demo: $GASTOS"
+          test "$GASTOS" -gt 0
+
+      - name: Logs (si algo falló)
+        if: failure()
+        run: docker compose --profile demo logs
+
+      - name: Apagar
+        if: always()
+        run: docker compose --profile demo down

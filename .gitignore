@@ -1,0 +1,47 @@
+# ── Dependencias y builds ──────────────────────────────────────────────
+node_modules/
+dist/
+dist-ssr/
+coverage/
+*.tsbuildinfo
+
+# Cliente de Prisma: se genera con `npx prisma generate`
+backend/src/generated/
+
+# ── Variables de entorno ───────────────────────────────────────────────
+# Nunca se suben. Cada carpeta tiene un .env.example como plantilla.
+.env
+.env.*
+!.env.example
+
+# ── Archivos locales de esta máquina ──────────────────────────────────
+# Marca del último build que usa iniciar-gastos.ps1
+.ultimo-build
+
+# Lanzador local de la demo (no forma parte del repo)
+demo-gastos.cmd
+
+# Configuración personal de Claude Code
+CLAUDE.md
+.claude/settings.local.json
+**/.claude/settings.local.json
+
+# Skills de Prisma que instala `prisma init` (se reinstalan cuando hagan falta).
+# backend/.claude/skills apunta a backend/.agents, así que van juntas
+backend/.agents/
+backend/.claude/skills/
+.windsurf/
+
+# ── Logs ───────────────────────────────────────────────────────────────
+logs/
+*.log
+npm-debug.log*
+
+# ── Editores y sistema operativo ───────────────────────────────────────
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp

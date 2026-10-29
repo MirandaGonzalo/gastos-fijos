@@ -1,0 +1,90 @@
+// Schema de gastos-fijos (Prisma 7)
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs" // NestJS usa CommonJS
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Currency {
+  ARS
+  USD
+}
+
+// AUTOMATIC: la fecha es cuándo se debita solo
+// MANUAL: la fecha es el vencimiento, hay que pagarlo antes
+enum PaymentMode {
+  AUTOMATIC
+  MANUAL
+}
+
+enum ChargeStatus {
+  PENDING
+  PAID
+}
+
+// Catálogos administrables desde la app
+model Category {
+  id        Int            @id @default(autoincrement())
+  name      String         @unique
+  expenses  FixedExpense[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@map("categories")
+}
+
+model PaymentMethod {
+  id        Int            @id @default(autoincrement())
+  name      String         @unique
+  expenses  FixedExpense[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@map("payment_methods")
+}
+
+// Plantilla del gasto: qué es, cuándo se debita y cuánto se estima
+model FixedExpense {
+  id              Int             @id @default(autoincrement())
+  name            String
+  estimatedAmount Decimal         @db.Decimal(12, 2) // Decimal para plata: nunca float
+  currency        Currency        @default(ARS)
+  paymentMode     PaymentMode     @default(AUTOMATIC)
+  debitDay        Int // 1 a 31: día de débito (AUTOMATIC) o de vencimiento (MANUAL)
+  categoryId      Int
+  category        Category        @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  paymentMethodId Int
+  paymentMethod   PaymentMethod   @relation(fields: [paymentMethodId], references: [id], onDelete: Restrict)
+  startPeriod     String // "YYYY-MM": primer mes en que aplica
+  endPeriod       String? // "YYYY-MM": último mes (null = indefinido)
+  active          Boolean         @default(true)
+  charges         MonthlyCharge[]
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@map("fixed_expenses")
+}
+
+// Lo que pasa un mes concreto: monto real, vencimiento y si se pagó
+model MonthlyCharge {
+  id        Int          @id @default(autoincrement())
+  expenseId Int
+  expense   FixedExpense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  period    String // "YYYY-MM"
+  dueDate   DateTime     @db.Date
+  amount       Decimal      @db.Decimal(12, 2)
+  exchangeRate Decimal?     @db.Decimal(12, 2) // solo USD: pesos por dólar al que se compró para pagarlo
+  status    ChargeStatus @default(PENDING)
+  paidAt    DateTime?
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@unique([expenseId, period]) // un solo cargo por gasto y por mes
+  @@index([period])
+  @@map("monthly_charges")
+}

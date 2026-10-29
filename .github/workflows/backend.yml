@@ -1,0 +1,91 @@
+name: Backend CI
+
+on:
+  push:
+    branches: [main]
+    paths: ['backend/**', '.github/workflows/backend.yml']
+  pull_request:
+    paths: ['backend/**', '.github/workflows/backend.yml']
+
+concurrency:
+  group: backend-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: backend
+
+jobs:
+  ci:
+    name: Lint, tipos, tests, migraciones y smoke test
+    runs-on: ubuntu-latest
+
+    # Postgres real para probar migraciones, el seed y la API levantada
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: gastos
+          POSTGRES_PASSWORD: gastos
+          POSTGRES_DB: gastos_demo
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U gastos -d gastos_demo"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://gastos:gastos@localhost:5432/gastos_demo?schema=public
+      PORT: 3100
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Generar cliente de Prisma
+        run: npx prisma generate
+
+      - name: Lint (ESLint)
+        run: npx eslint "src/**/*.ts" "prisma/**/*.ts"
+
+      - name: Chequeo de tipos (TypeScript)
+        run: npx tsc --noEmit -p tsconfig.json
+
+      - name: Tests unitarios (Jest)
+        run: npm test -- --ci
+
+      - name: Aplicar migraciones en una base limpia
+        run: npx prisma migrate deploy
+
+      - name: Cargar datos de demo
+        run: npx ts-node --transpile-only prisma/seed-demo.ts
+
+      - name: Build
+        run: npm run build
+
+      # Levanta la API de verdad y le pega a los endpoints principales
+      - name: Smoke test de la API
+        run: |
+          node dist/main > api.log 2>&1 &
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:3100/categories > /dev/null && break
+            sleep 1
+          done
+          set -e
+          echo "Categorías:";   curl -sf http://localhost:3100/categories | head -c 300; echo
+          echo "Gastos:";       curl -sf http://localhost:3100/expenses | head -c 300; echo
+          echo "Cargos del mes:"; curl -sf http://localhost:3100/charges | head -c 300; echo
+          curl -sf http://localhost:3100/docs > /dev/null && echo "Swagger OK"
+
+      - name: Log de la API (si algo falló)
+        if: failure()
+        run: cat api.log || true

@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "gastos-db": {
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "@bytebase/dbhub",
+        "--transport",
+        "stdio",
+        "--dsn",
+        "postgres://gastos_ro:gastos_ro@localhost:5433/gastos_fijos?sslmode=disable"
+      ]
+    }
+  }
+}

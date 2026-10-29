@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Calculadora -->
+  <rect x="10" y="4" width="44" height="56" rx="8" fill="#2563eb"/>
+  <rect x="17" y="11" width="30" height="12" rx="3" fill="#dbeafe"/>
+  <g fill="#ffffff">
+    <rect x="17" y="29" width="8" height="7" rx="2"/>
+    <rect x="28" y="29" width="8" height="7" rx="2"/>
+    <rect x="39" y="29" width="8" height="7" rx="2"/>
+    <rect x="17" y="40" width="8" height="7" rx="2"/>
+    <rect x="28" y="40" width="8" height="7" rx="2"/>
+    <rect x="17" y="51" width="8" height="5" rx="2"/>
+    <rect x="28" y="51" width="8" height="5" rx="2"/>
+  </g>
+  <rect x="39" y="40" width="8" height="16" rx="2" fill="#f59e0b"/>
+</svg>

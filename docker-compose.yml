@@ -1,0 +1,104 @@
+# gastos-fijos: todo aislado de Bilo (contenedores, volumen y puertos propios)
+#
+#   Solo la base (para desarrollar):   docker compose up -d
+#   La app completa (para usarla):     docker compose --profile app up -d
+#   Reconstruir tras cambiar código:   docker compose --profile app up -d --build
+#   Apagar todo:                       docker compose --profile app down
+#
+#   Modo DEMO (datos inventados, base aparte):  docker compose --profile demo up -d --build
+#                                               -> http://localhost:5191
+#   Apagar la demo:                             docker compose --profile demo down
+
+services:
+  db:
+    image: postgres:17
+    container_name: gastos-fijos-db
+    environment:
+      POSTGRES_USER: gastos
+      POSTGRES_PASSWORD: gastos
+      POSTGRES_DB: gastos_fijos
+    ports:
+      - "5433:5432"   # 5433 en tu PC -> 5432 dentro del contenedor (para desarrollar)
+    volumes:
+      - gastos-fijos-data:/var/lib/postgresql/data
+    healthcheck:      # el back espera a que la base esté lista de verdad
+      test: ["CMD-SHELL", "pg_isready -U gastos -d gastos_fijos"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  backend:
+    profiles: ["app"]
+    build: ./backend
+    container_name: gastos-fijos-api
+    environment:
+      # Dentro de la red de Docker la base se llama "db" y escucha en 5432
+      DATABASE_URL: postgresql://gastos:gastos@db:5432/gastos_fijos?schema=public
+      PORT: 3100
+      DOLAR_API_URL: https://dolarapi.com/v1/dolares
+    depends_on:
+      db:
+        condition: service_healthy
+    # Sin puertos publicados: solo lo ve el front a través de nginx
+
+  frontend:
+    profiles: ["app"]
+    build: ./frontend
+    container_name: gastos-fijos-web
+    ports:
+      - "5190:80"     # la app: http://localhost:5190
+    depends_on:
+      - backend
+
+  # ── Modo demo: datos inventados en una base separada, para mostrar la app ──
+  # Usa las mismas imágenes que la app, pero en su propia red: el back de demo
+  # se llama "backend" dentro de esa red, así el nginx del front no cambia.
+  db-demo:
+    profiles: ["demo"]
+    image: postgres:17
+    container_name: gastos-fijos-demo-db
+    environment:
+      POSTGRES_USER: gastos
+      POSTGRES_PASSWORD: gastos
+      POSTGRES_DB: gastos_demo
+    tmpfs:
+      - /var/lib/postgresql/data   # en memoria: se regenera en cada arranque
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gastos -d gastos_demo"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    networks: [demo]
+
+  backend-demo:
+    profiles: ["demo"]
+    build: ./backend
+    container_name: gastos-fijos-demo-api
+    environment:
+      DATABASE_URL: postgresql://gastos:gastos@db-demo:5432/gastos_demo?schema=public
+      PORT: 3100
+      DOLAR_API_URL: https://dolarapi.com/v1/dolares
+    # Migra, carga los datos de demo y levanta la API
+    command: sh -c "npx prisma migrate deploy && npx ts-node --transpile-only prisma/seed-demo.ts && node dist/main"
+    depends_on:
+      db-demo:
+        condition: service_healthy
+    networks:
+      demo:
+        aliases: [backend]
+
+  frontend-demo:
+    profiles: ["demo"]
+    build: ./frontend
+    container_name: gastos-fijos-demo-web
+    ports:
+      - "5191:80"     # la demo: http://localhost:5191
+    depends_on:
+      - backend-demo
+    networks: [demo]
+
+volumes:
+  gastos-fijos-data:
+
+networks:
+  demo:

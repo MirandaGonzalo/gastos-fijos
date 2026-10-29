@@ -1,0 +1,9 @@
+node_modules
+/dist
+/coverage
+
+# Variables de entorno (ver .env.example)
+.env
+
+# Cliente de Prisma generado
+/src/generated
