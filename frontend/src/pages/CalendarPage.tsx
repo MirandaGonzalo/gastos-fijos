@@ -10,6 +10,9 @@ import { chargeToArs } from '../utils/stats'
 import { PAYMENT_MODE_INFO } from '../utils/paymentMode'
 import { ArrowRightIcon, ChevronLeftIcon, ChevronRightIcon } from '../components/icons'
 import type { MonthlyCharge } from '../types'
+import { UnitFilterSelect } from '../components/UnitFilterSelect'
+import { useUnitFilter } from '../hooks/useUnitFilter'
+import { shareFor } from '../utils/units'
 
 const PERIOD_REGEX = /^\d{4}-(0[1-9]|1[0-2])$/
 
@@ -29,12 +32,19 @@ export function CalendarPage() {
   const period = param && PERIOD_REGEX.test(param) ? param : currentPeriod()
   const today = todayIso()
 
-  const { charges, loading, error, reload } = useCharges(period)
+  const { charges: allCharges, loading, error, reload } = useCharges(period)
+  const { unitFilter, setUnitFilter } = useUnitFilter()
+  const charges = allCharges.filter((c) => shareFor(c.expense.units, unitFilter) > 0)
   const { rate } = useExchangeRate()
   const [selected, setSelected] = useState<string | null>(today)
 
   function goTo(next: string) {
-    setSearchParams(next === currentPeriod() ? {} : { mes: next })
+    setSearchParams((prev) => {
+      const params = new URLSearchParams(prev)
+      if (next === currentPeriod()) params.delete('mes')
+      else params.set('mes', next)
+      return params
+    })
     setSelected(next === currentPeriod() ? today : null)
   }
 
@@ -53,6 +63,7 @@ export function CalendarPage() {
       {/* Encabezado */}
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <h1 className="mr-auto text-2xl font-semibold">Calendario</h1>
+        <UnitFilterSelect value={unitFilter} onChange={setUnitFilter} />
         <button onClick={() => goTo(addMonths(period, -1))} className="rounded-lg border border-gray-700 p-2 hover:bg-gray-800" aria-label="Mes anterior">
           <ChevronLeftIcon />
         </button>

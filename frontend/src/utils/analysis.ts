@@ -4,11 +4,15 @@ import { addMonths } from './dates'
 // Análisis sobre lo que REALMENTE pagaste: solo cargos pagados y con costo en pesos conocido.
 // Función pura: recibe cargos y meses, devuelve números. No sabe nada de React.
 
-const MAX_CATEGORIES = 6 // más que esto se agrupa en "Otros"
+const MAX_GROUPS = 6 // más que esto se agrupa en "Otros"
+
+// Cómo se arman las barras de cada mes: por categoría o por unidad
+export type GroupBy = 'category' | 'unit'
 
 export type ExpenseVariation = {
   id: number
   name: string
+  units: string[]              // nombres de sus unidades (vacío = general)
   currency: 'ARS' | 'USD'
   first: { period: string; amount: number }
   last: { period: string; amount: number }
@@ -31,7 +35,7 @@ export function periodsInRange(from: string, to: string): string[] {
   return result
 }
 
-export function buildAnalysis(charges: MonthlyCharge[], periods: string[]) {
+export function buildAnalysis(charges: MonthlyCharge[], periods: string[], groupBy: GroupBy = 'category') {
   const paid = charges.filter((c) => c.status === 'PAID' && c.amountArs !== null)
   const missingRate = charges.filter((c) => c.status === 'PAID' && c.amountArs === null).length
   const ars = (c: MonthlyCharge) => c.amountArs ?? 0
@@ -41,26 +45,31 @@ export function buildAnalysis(charges: MonthlyCharge[], periods: string[]) {
   const monthsWithPayments = new Set(paid.map((c) => c.period)).size
   const average = monthsWithPayments > 0 ? total / monthsWithPayments : 0
 
-  // ── Categorías: orden fijo (alfabético) para que cada una conserve su color ──
-  const categoryTotals = new Map<string, number>()
-  for (const c of paid) {
-    const name = c.expense.category.name
-    categoryTotals.set(name, (categoryTotals.get(name) ?? 0) + ars(c))
-  }
-  const byTotal = [...categoryTotals.entries()].sort((a, b) => b[1] - a[1]).map(([n]) => n)
-  const kept = new Set(byTotal.slice(0, byTotal.length > MAX_CATEGORIES ? MAX_CATEGORIES - 1 : MAX_CATEGORIES))
-  const categoryOf = (name: string) => (kept.has(name) ? name : 'Otros')
-  const categories = [...kept].sort((a, b) => a.localeCompare(b, 'es'))
-  if (byTotal.length > MAX_CATEGORIES) categories.push('Otros')
+  // ── Cada pago, asignado a su grupo. Por unidad, un gasto compartido se reparte
+  //    según su porcentaje (Disney+ 50/50 -> mitad a cada unidad); sin unidad va a "General" ──
+  const entries = paid.flatMap((c) => {
+    if (groupBy === 'category') return [{ period: c.period, group: c.expense.category.name, value: ars(c) }]
+    if (c.expense.units.length === 0) return [{ period: c.period, group: 'General', value: ars(c) }]
+    return c.expense.units.map((u) => ({ period: c.period, group: u.name, value: (ars(c) * u.share) / 100 }))
+  })
 
-  // ── Una fila por mes, con el total de cada categoría (para las barras apiladas) ──
+  // ── Grupos: orden fijo (alfabético) para que cada uno conserve su color ──
+  const groupTotals = new Map<string, number>()
+  for (const e of entries) groupTotals.set(e.group, (groupTotals.get(e.group) ?? 0) + e.value)
+  const byTotal = [...groupTotals.entries()].sort((a, b) => b[1] - a[1]).map(([n]) => n)
+  const kept = new Set(byTotal.slice(0, byTotal.length > MAX_GROUPS ? MAX_GROUPS - 1 : MAX_GROUPS))
+  const groupOf = (name: string) => (kept.has(name) ? name : 'Otros')
+  const groups = [...kept].sort((a, b) => a.localeCompare(b, 'es'))
+  if (byTotal.length > MAX_GROUPS) groups.push('Otros')
+
+  // ── Una fila por mes, con el total de cada grupo (para las barras apiladas) ──
   const months = periods.map((period) => {
     const row: Record<string, number | string> & { period: string; total: number } = { period, total: 0 }
-    for (const cat of categories) row[cat] = 0
-    for (const c of paid.filter((x) => x.period === period)) {
-      const cat = categoryOf(c.expense.category.name)
-      row[cat] = (row[cat] as number) + ars(c)
-      row.total += ars(c)
+    for (const g of groups) row[g] = 0
+    for (const e of entries.filter((x) => x.period === period)) {
+      const g = groupOf(e.group)
+      row[g] = (row[g] as number) + e.value
+      row.total += e.value
     }
     return row
   })
@@ -79,6 +88,7 @@ export function buildAnalysis(charges: MonthlyCharge[], periods: string[]) {
     return {
       id: first.expense.id,
       name: first.expense.name,
+      units: first.expense.units.map((u) => u.name),
       currency: first.expense.currency,
       first: { period: first.period, amount: ars(first) },
       last: { period: last.period, amount: ars(last) },
@@ -94,5 +104,5 @@ export function buildAnalysis(charges: MonthlyCharge[], periods: string[]) {
     withChange.length > 0 ? withChange.reduce((acc, v) => acc + (v.change ?? 0), 0) / withChange.length : null
   const topRiser = withChange.length > 0 ? withChange.reduce((a, b) => ((b.change ?? 0) > (a.change ?? 0) ? b : a)) : null
 
-  return { total, average, monthsWithPayments, averageChange, topRiser, categories, months, variations, missingRate }
+  return { total, average, monthsWithPayments, averageChange, topRiser, groups, months, variations, missingRate }
 }

@@ -7,12 +7,14 @@ import { toArs } from '../../utils/stats'
 import { PencilIcon } from '../icons'
 import { useExchangeRate } from '../../context/exchangeRate'
 
-type SortKey = 'name' | 'category' | 'debitDay' | 'paymentMethod' | 'startPeriod' | 'amount'
+type SortKey = 'name' | 'units' | 'category' | 'debitDay' | 'paymentMethod' | 'startPeriod' | 'amount'
 type SortDir = 'asc' | 'desc'
 
 // Cómo comparar dos gastos según cada columna (el monto necesita la cotización)
 const makeComparators = (rate: number | null): Record<SortKey, (a: FixedExpense, b: FixedExpense) => number> => ({
   name: (a, b) => a.name.localeCompare(b.name, 'es'),
+  // Por nombre de unidad; los generales (sin unidad) quedan al final
+  units: (a, b) => unitsLabel(a).localeCompare(unitsLabel(b), 'es'),
   category: (a, b) => a.category.name.localeCompare(b.category.name, 'es'),
   debitDay: (a, b) => a.debitDay - b.debitDay,
   paymentMethod: (a, b) => a.paymentMethod.name.localeCompare(b.paymentMethod.name, 'es'),
@@ -20,8 +22,12 @@ const makeComparators = (rate: number | null): Record<SortKey, (a: FixedExpense,
   amount: (a, b) => toArs(a, rate) - toArs(b, rate), // en pesos, para comparar ARS con USD
 })
 
+// Texto para ordenar por unidad: "~" va después de cualquier letra, así los generales quedan al final
+const unitsLabel = (e: FixedExpense) => (e.units.length === 0 ? '~' : e.units.map((u) => u.name).join(' '))
+
 const columns: { key: SortKey; label: string; align?: 'right' }[] = [
   { key: 'name', label: 'Nombre' },
+  { key: 'units', label: 'Unidades' },
   { key: 'category', label: 'Categoría' },
   { key: 'debitDay', label: 'Fecha' },
   { key: 'paymentMethod', label: 'Medio de pago' },
@@ -48,8 +54,9 @@ export function ExpensesTable({ expenses }: { expenses: FixedExpense[] }) {
   })
 
   return (
-    // Alto máximo de media pantalla; si hay más gastos, scrollea solo la tabla
-    <div className="max-h-[50vh] overflow-y-auto rounded-xl border border-gray-800">
+    // Ocupa todo el alto disponible (min-h-0 deja que se achique dentro de la pantalla);
+    // si hay más gastos de los que entran, scrollea solo la tabla y el encabezado queda fijo
+    <div className="min-h-0 overflow-y-auto rounded-xl border border-gray-800">
       <table className="w-full text-sm text-left">
         {/* sticky: el encabezado queda fijo arriba mientras scrolleás */}
         <thead className="sticky top-0 z-10 bg-gray-900 text-xs uppercase text-gray-400 shadow-[0_1px_0_0_#1f2937]">
@@ -86,6 +93,20 @@ export function ExpensesTable({ expenses }: { expenses: FixedExpense[] }) {
               className={`border-b border-gray-800 last:border-0 hover:bg-gray-800/50 ${e.active ? '' : 'opacity-40'}`}
             >
               <td className="py-2 px-3">{e.name}</td>
+              <td className="py-2 px-3">
+                {e.units.length === 0 ? (
+                  <span className="text-xs text-gray-500">General</span>
+                ) : (
+                  <div className="flex flex-wrap gap-1">
+                    {e.units.map((u) => (
+                      <span key={u.id} className="rounded-full bg-indigo-500/15 px-2 py-0.5 text-xs text-indigo-200 whitespace-nowrap">
+                        {u.name}
+                        {e.units.length > 1 && <span className="ml-1 text-indigo-300/70">{u.share}%</span>}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </td>
               <td className="py-2 px-3 text-gray-400">{e.category.name}</td>
               <td className="py-2 px-3">
                 <span className="block">{PAYMENT_MODE_INFO[e.paymentMode].dayPrefix} {e.debitDay}</span>

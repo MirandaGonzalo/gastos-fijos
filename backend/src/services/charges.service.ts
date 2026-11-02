@@ -8,6 +8,7 @@ import { ChargeResponseDto } from '../dto/charge-response.dto';
 import { UpdateChargeDto } from '../dto/update-charge.dto';
 import { prismaErrorCode } from '../utils/prisma-errors';
 import { currentPeriod, dueDateFor, periodsBetween } from '../utils/period';
+import { expenseUnitsSelect, toExpenseUnits } from '../utils/units';
 
 const MAX_MONTHS = 24;
 
@@ -22,6 +23,7 @@ const chargeInclude = {
       debitDay: true,
       category: { select: { id: true, name: true } },
       paymentMethod: { select: { id: true, name: true } },
+      units: expenseUnitsSelect,
     },
   },
 } as const;
@@ -34,7 +36,9 @@ type ChargeWithExpense = {
   exchangeRate: { toNumber(): number } | null;
   status: 'PENDING' | 'PAID';
   paidAt: Date | null;
-  expense: ChargeResponseDto['expense'];
+  expense: Omit<ChargeResponseDto['expense'], 'units'> & {
+    units: Parameters<typeof toExpenseUnits>[0];
+  };
 };
 
 function toResponse(c: ChargeWithExpense): ChargeResponseDto {
@@ -55,7 +59,7 @@ function toResponse(c: ChargeWithExpense): ChargeResponseDto {
     amountArs,
     status: c.status,
     paidAt: c.paidAt,
-    expense: c.expense,
+    expense: { ...c.expense, units: toExpenseUnits(c.expense.units) },
   };
 }
 

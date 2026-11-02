@@ -39,7 +39,7 @@ describe('buildAnalysis', () => {
   })
 
   it('arma una fila por mes con el total de cada categoría', () => {
-    expect(a.categories).toEqual(['Salud', 'Servicios']) // orden alfabético, estable
+    expect(a.groups).toEqual(['Salud', 'Servicios']) // orden alfabético, estable
     expect(a.months[0]).toMatchObject({ period: '2026-08', Servicios: 79420, Salud: 0, total: 79420 })
     expect(a.months[2]).toMatchObject({ period: '2026-10', Servicios: 85457, Salud: 51713 })
   })
@@ -66,5 +66,21 @@ describe('buildAnalysis', () => {
     const r = buildAnalysis([usd], ['2026-10'])
     expect(r.missingRate).toBe(1)
     expect(r.total).toBe(0)
+  })
+
+  it('agrupado por unidad, reparte los compartidos y junta los generales', () => {
+    const depto = { id: 1, name: 'Depto', type: 'PROPERTY' as const }
+    const casa = { id: 2, name: 'Casa', type: 'PROPERTY' as const }
+    const r = buildAnalysis(
+      [
+        makeCharge({ id: 1, status: 'PAID', amountArs: 24000, expense: { id: 1, units: [{ ...depto, share: 50 }, { ...casa, share: 50 }] } }),
+        makeCharge({ id: 2, status: 'PAID', amountArs: 80000, expense: { id: 2, units: [{ ...depto, share: 100 }] } }),
+        makeCharge({ id: 3, status: 'PAID', amountArs: 50000, expense: { id: 3, units: [] } }),
+      ],
+      ['2026-10'],
+      'unit',
+    )
+    expect(r.groups).toEqual(['Casa', 'Depto', 'General'])
+    expect(r.months[0]).toMatchObject({ Depto: 92000, Casa: 12000, General: 50000, total: 154000 })
   })
 })

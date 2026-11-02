@@ -41,7 +41,7 @@ export function HomePage() {
 }
 
 function HomeContent({ charges, now, rate }: { charges: MonthlyCharge[]; now: string; rate: number | null }) {
-  const { next, nextWeek, overdue, month, previousTotal, change } = buildHomeSummary(charges, now, rate)
+  const { next, nextWeek, overdue, month, previousTotal, change, byUnit } = buildHomeSummary(charges, now, rate)
   const percent = month.total > 0 ? Math.round((month.paid / month.total) * 100) : 0
 
   return (
@@ -109,6 +109,36 @@ function HomeContent({ charges, now, rate }: { charges: MonthlyCharge[]; now: st
           )}
         </section>
       </div>
+
+      {/* Este mes por unidad: solo si hay gastos asignados a alguna */}
+      {byUnit.length > 0 && (
+        <section className={card}>
+          <div className="mb-3 flex items-center">
+            <h2 className="mr-auto font-medium">Este mes, por unidad</h2>
+            <Link to="/analisis" className="text-sm text-blue-400 hover:underline">Ver análisis</Link>
+          </div>
+          <ul className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-x-6 gap-y-4">
+            {byUnit.map((u) => {
+              const pct = u.total > 0 ? Math.round((u.paid / u.total) * 100) : 0
+              return (
+                <li key={u.name}>
+                  <div className="flex items-baseline gap-2 text-sm">
+                    <span className={`flex-1 truncate ${u.name === 'General' ? 'text-gray-400' : 'font-medium'}`}>{u.name}</span>
+                    <span className="font-medium">{formatMoney(u.total, 'ARS')}</span>
+                  </div>
+                  <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-gray-800">
+                    <div className="h-full rounded-full bg-emerald-500" style={{ width: `${pct}%` }} />
+                  </div>
+                  <p className="mt-1 text-xs text-gray-500">
+                    {u.total - u.paid > 0.5 ? `Falta ${formatMoney(u.total - u.paid, 'ARS')}` : 'Al día'} · {pct}% pagado
+                  </p>
+                </li>
+              )
+            })}
+          </ul>
+          <p className="mt-3 text-xs text-gray-500">Los gastos compartidos se reparten según el porcentaje de cada unidad.</p>
+        </section>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Próximos 7 días */}

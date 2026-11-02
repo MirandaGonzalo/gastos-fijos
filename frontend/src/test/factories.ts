@@ -23,6 +23,7 @@ export function makeCharge(
       debitDay: 10,
       category: { id: 1, name: 'Servicios' },
       paymentMethod: { id: 1, name: 'Visa' },
+      units: [],
       ...expense,
     },
   }

@@ -78,7 +78,26 @@ type DemoExpense = {
   season?: 'summer' | 'winter'; // luz en verano, gas en invierno
   startOffset?: number; // empieza N meses después del inicio
   endOffset?: number; // termina N meses antes del mes actual (gasto dado de baja)
+  units?: [string, number][]; // [unidad, porcentaje]; sin unidades = gasto general
 };
+
+const UNITS: {
+  name: string;
+  type: 'PROPERTY' | 'VEHICLE' | 'OTHER';
+  description: string;
+}[] = [
+  {
+    name: 'Depto Nueva Córdoba',
+    type: 'PROPERTY',
+    description: 'Bv. San Juan 500, 4°B',
+  },
+  {
+    name: 'Casa en las sierras',
+    type: 'PROPERTY',
+    description: 'Villa Carlos Paz',
+  },
+  { name: 'Auto', type: 'VEHICLE', description: 'Gol Trend 2018' },
+];
 
 const EXPENSES: DemoExpense[] = [
   {
@@ -90,6 +109,7 @@ const EXPENSES: DemoExpense[] = [
     currency: 'ARS',
     base: 420000,
     profile: { kind: 'steps', every: 4, jump: 0.14 },
+    units: [['Depto Nueva Córdoba', 100]],
   },
   {
     name: 'Expensas',
@@ -100,6 +120,7 @@ const EXPENSES: DemoExpense[] = [
     currency: 'ARS',
     base: 105000,
     profile: { kind: 'inflation', monthly: 0.025, noise: 0.03 },
+    units: [['Depto Nueva Córdoba', 100]],
   },
   {
     name: 'Luz',
@@ -111,6 +132,7 @@ const EXPENSES: DemoExpense[] = [
     base: 42000,
     profile: { kind: 'inflation', monthly: 0.03, noise: 0.05 },
     season: 'summer',
+    units: [['Depto Nueva Córdoba', 100]],
   },
   {
     name: 'Gas',
@@ -122,6 +144,7 @@ const EXPENSES: DemoExpense[] = [
     base: 16000,
     profile: { kind: 'inflation', monthly: 0.035, noise: 0.04 },
     season: 'winter',
+    units: [['Casa en las sierras', 100]],
   },
   {
     name: 'Agua',
@@ -132,6 +155,7 @@ const EXPENSES: DemoExpense[] = [
     currency: 'ARS',
     base: 12500,
     profile: { kind: 'inflation', monthly: 0.03, noise: 0.02 },
+    units: [['Casa en las sierras', 100]],
   },
   {
     name: 'Internet',
@@ -142,6 +166,10 @@ const EXPENSES: DemoExpense[] = [
     currency: 'ARS',
     base: 24500,
     profile: { kind: 'steps', every: 3, jump: 0.09 },
+    units: [
+      ['Depto Nueva Córdoba', 60],
+      ['Casa en las sierras', 40],
+    ],
   },
   {
     name: 'Celular',
@@ -182,6 +210,10 @@ const EXPENSES: DemoExpense[] = [
     currency: 'ARS',
     base: 11500,
     profile: { kind: 'steps', every: 6, jump: 0.22 },
+    units: [
+      ['Depto Nueva Córdoba', 50],
+      ['Casa en las sierras', 50],
+    ],
   },
   {
     name: 'Música',
@@ -223,6 +255,7 @@ const EXPENSES: DemoExpense[] = [
     currency: 'ARS',
     base: 52000,
     profile: { kind: 'inflation', monthly: 0.03, noise: 0.01 },
+    units: [['Auto', 100]],
   },
   {
     name: 'Diario digital',
@@ -260,7 +293,9 @@ async function main() {
 
   // Empezar de cero (el orden importa por las claves foráneas)
   await prisma.monthlyCharge.deleteMany();
+  await prisma.expenseUnit.deleteMany();
   await prisma.fixedExpense.deleteMany();
+  await prisma.unit.deleteMany();
   await prisma.category.deleteMany();
   await prisma.paymentMethod.deleteMany();
 
@@ -277,6 +312,11 @@ async function main() {
       name,
       (await prisma.paymentMethod.create({ data: { name } })).id,
     );
+  }
+
+  const unitIds = new Map<string, number>();
+  for (const u of UNITS) {
+    unitIds.set(u.name, (await prisma.unit.create({ data: u })).id);
   }
 
   let charges = 0;
@@ -306,6 +346,14 @@ async function main() {
         startPeriod,
         endPeriod,
         active: endPeriod === null,
+        units: {
+          createMany: {
+            data: (e.units ?? []).map(([unit, share]) => ({
+              unitId: unitIds.get(unit)!,
+              share,
+            })),
+          },
+        },
       },
     });
 

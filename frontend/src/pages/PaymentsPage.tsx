@@ -3,6 +3,9 @@ import { useCharges } from '../hooks/useCharges'
 import { getChargeStatus, type ChargeGroup } from '../utils/chargeStatus'
 import { addMonths, currentPeriod, formatPeriodLong } from '../utils/dates'
 import { RateNote } from '../components/RateNote'
+import { UnitFilterSelect } from '../components/UnitFilterSelect'
+import { useUnitFilter } from '../hooks/useUnitFilter'
+import { shareFor } from '../utils/units'
 import { ChevronLeftIcon, ChevronRightIcon } from '../components/icons'
 import { capitalizeFirst } from '../utils/format'
 import { ChargeRow } from '../components/payments/ChargeRow'
@@ -23,10 +26,18 @@ export function PaymentsPage() {
   const period = param && PERIOD_REGEX.test(param) ? param : currentPeriod()
   const isCurrent = period === currentPeriod()
 
-  const { charges, loading, error, reload, replaceCharge } = useCharges(period)
+  const { charges: allCharges, loading, error, reload, replaceCharge } = useCharges(period)
+  const { unitFilter, setUnitFilter } = useUnitFilter()
+  const charges = allCharges.filter((c) => shareFor(c.expense.units, unitFilter) > 0)
 
   function goTo(next: string) {
-    setSearchParams(next === currentPeriod() ? {} : { mes: next })
+    // Cambia el mes sin perder el filtro de unidad
+    setSearchParams((prev) => {
+      const params = new URLSearchParams(prev)
+      if (next === currentPeriod()) params.delete('mes')
+      else params.set('mes', next)
+      return params
+    })
   }
 
   return (
@@ -34,6 +45,7 @@ export function PaymentsPage() {
       {/* Encabezado con navegación de meses */}
       <div className="mb-6 flex max-w-4xl flex-wrap items-center gap-3">
         <h1 className="text-2xl font-semibold mr-auto">Pagos</h1>
+        <UnitFilterSelect value={unitFilter} onChange={setUnitFilter} />
         <button onClick={() => goTo(addMonths(period, -1))} className="rounded-lg border border-gray-700 p-2 hover:bg-gray-800" aria-label="Mes anterior">
           <ChevronLeftIcon />
         </button>
@@ -81,6 +93,9 @@ export function PaymentsPage() {
             )
           })}
 
+          {unitFilter !== 'all' && (
+            <p className="text-xs text-gray-500">Los gastos compartidos entre unidades se muestran completos, porque se pagan una sola vez.</p>
+          )}
           <RateNote prefix="Los USD pagados usan la cotización a la que compraste; los pendientes se estiman a" />
         </div>
       )}

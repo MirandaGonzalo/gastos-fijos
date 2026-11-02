@@ -36,10 +36,32 @@ export function buildHomeSummary(charges: MonthlyCharge[], now: string, rate: nu
     pendingUsd: currentPending.filter((c) => c.expense.currency === 'USD').reduce((a, c) => a + c.amount, 0),
   }
 
+  // Este mes, por unidad (prorrateado: un gasto 50/50 suma la mitad a cada una). Sin unidad -> "General"
+  const unitTotals = new Map<string, { total: number; paid: number }>()
+  for (const c of current) {
+    const value = chargeToArs(c, rate)
+    const parts = c.expense.units.length === 0
+      ? [{ name: 'General', share: 100 }]
+      : c.expense.units.map((u) => ({ name: u.name, share: u.share }))
+    for (const p of parts) {
+      const t = unitTotals.get(p.name) ?? { total: 0, paid: 0 }
+      t.total += (value * p.share) / 100
+      if (c.status === 'PAID') t.paid += (value * p.share) / 100
+      unitTotals.set(p.name, t)
+    }
+  }
+  const hasUnits = current.some((c) => c.expense.units.length > 0)
+  // Ordenadas por nombre, con "General" al final
+  const byUnit = hasUnits
+    ? [...unitTotals]
+        .map(([name, t]) => ({ name, ...t }))
+        .sort((a, b) => (a.name === 'General' ? 1 : b.name === 'General' ? -1 : a.name.localeCompare(b.name, 'es')))
+    : []
+
   const previousTotal = previous.length > 0 ? sum(previous) : null
   const change = previousTotal ? (month.total - previousTotal) / previousTotal : null
 
-  return { next, nextWeek, overdue, month, previousTotal, change }
+  return { next, nextWeek, overdue, month, previousTotal, change, byUnit }
 }
 
 // 0 -> "hoy", 1 -> "mañana", 5 -> "en 5 días"

@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
 import { useCatalog } from '../../hooks/useCatalog'
+import { useUnits } from '../../hooks/useUnits'
+import { splitEvenly, UNIT_TYPE_LABEL } from '../../utils/units'
 import type { PaymentMode } from '../../types'
 import { PAYMENT_MODE_INFO } from '../../utils/paymentMode'
 import { validateExpenseForm, type ExpenseFormErrors, type ExpenseFormValues } from './expenseFormUtils'
@@ -23,6 +25,27 @@ export function ExpenseForm({ initialValues, submitLabel, onSubmit, currencyLock
   const [apiError, setApiError] = useState<string | null>(null)
   const categories = useCatalog('categories')
   const paymentMethods = useCatalog('payment-methods')
+  const { units } = useUnits()
+
+  // Activa o desactiva una unidad y vuelve a repartir en partes iguales
+  function toggleUnit(unitId: number) {
+    setForm((prev) => {
+      const selected = prev.units.some((u) => u.unitId === unitId)
+        ? prev.units.filter((u) => u.unitId !== unitId)
+        : [...prev.units, { unitId, share: '0' }]
+      const shares = splitEvenly(selected.length)
+      return { ...prev, units: selected.map((u, i) => ({ ...u, share: String(shares[i]) })) }
+    })
+  }
+
+  function setShare(unitId: number, share: string) {
+    setForm((prev) => ({
+      ...prev,
+      units: prev.units.map((u) => (u.unitId === unitId ? { ...u, share } : u)),
+    }))
+  }
+
+  const sharesTotal = form.units.reduce((acc, u) => acc + (Number(u.share) || 0), 0)
 
   // Un solo handler para todos los inputs: usa el atributo name para saber qué campo cambiar
   // Los checkbox guardan su valor en .checked, no en .value
@@ -117,6 +140,69 @@ export function ExpenseForm({ initialValues, submitLabel, onSubmit, currencyLock
       <p className="sm:col-span-2 -mt-2 text-xs text-gray-500">
         ¿Falta alguna opción? Agregala en <Link to="/configuracion" className="text-blue-400 hover:underline">Configuración</Link>.
       </p>
+
+      {/* Unidades: a qué propiedad o vehículo corresponde el gasto, y en qué porcentaje */}
+      <fieldset className="sm:col-span-2 flex flex-col gap-2">
+        <legend className="mb-1 text-sm text-gray-300">Unidades</legend>
+        {units.length === 0 ? (
+          <p className="text-xs text-gray-500">
+            No tenés unidades cargadas: el gasto queda como general. Podés crearlas en{' '}
+            <Link to="/configuracion" className="text-blue-400 hover:underline">Configuración</Link>.
+          </p>
+        ) : (
+          <>
+            <div className="flex flex-wrap gap-2">
+              {units.map((u) => {
+                const active = form.units.some((x) => x.unitId === u.id)
+                return (
+                  <button
+                    key={u.id}
+                    type="button"
+                    onClick={() => toggleUnit(u.id)}
+                    aria-pressed={active}
+                    className={`rounded-full border px-3 py-1 text-sm ${
+                      active ? 'border-blue-500 bg-blue-500/15 text-blue-200' : 'border-gray-700 text-gray-300 hover:bg-gray-800'
+                    }`}
+                  >
+                    {u.name}
+                    <span className="ml-1.5 text-xs text-gray-500">{UNIT_TYPE_LABEL[u.type]}</span>
+                  </button>
+                )
+              })}
+            </div>
+
+            {form.units.length === 0 ? (
+              <p className="text-xs text-gray-500">Sin unidad: es un gasto general (por ejemplo, tu prepaga o el celular).</p>
+            ) : form.units.length > 1 ? (
+              // Con más de una unidad aparece el reparto, editable
+              <div className="flex flex-col gap-2 rounded-lg bg-gray-800/40 p-3">
+                {form.units.map((sel) => {
+                  const unit = units.find((u) => u.id === sel.unitId)
+                  return (
+                    <label key={sel.unitId} className="flex items-center gap-3 text-sm">
+                      <span className="flex-1 truncate">{unit?.name ?? `Unidad ${sel.unitId}`}</span>
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        value={sel.share}
+                        onChange={(e) => setShare(sel.unitId, e.target.value)}
+                        className="w-24 rounded-lg bg-gray-800 border border-gray-700 px-2 py-1 text-right text-sm outline-none focus:border-blue-500"
+                      />
+                      <span className="text-gray-500">%</span>
+                    </label>
+                  )
+                })}
+                <p className={`text-xs ${Math.abs(sharesTotal - 100) > 0.01 ? 'text-amber-400' : 'text-gray-500'}`}>
+                  Total: {Math.round(sharesTotal * 100) / 100}% · El gasto se paga una sola vez: el reparto es para saber cuánto le cuesta cada unidad.
+                </p>
+              </div>
+            ) : null}
+            {errors.units && <span className="text-xs text-red-400">{errors.units}</span>}
+          </>
+        )}
+      </fieldset>
 
       <Field label="Desde" error={errors.startPeriod}>
         <input name="startPeriod" type="month" value={form.startPeriod} onChange={handleChange} className={inputClass} />

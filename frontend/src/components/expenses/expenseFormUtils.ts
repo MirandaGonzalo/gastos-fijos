@@ -15,6 +15,7 @@ export type ExpenseFormValues = {
   startPeriod: string
   endPeriod: string
   active: boolean        // el checkbox es el único campo booleano
+  units: { unitId: number; share: string }[] // reparto entre unidades; vacío = gasto general
 }
 
 export type ExpenseFormErrors = Partial<Record<keyof ExpenseFormValues, string>>
@@ -31,6 +32,7 @@ export function emptyExpenseForm(): ExpenseFormValues {
     startPeriod: currentPeriod(),
     endPeriod: '',
     active: true,
+    units: [],
   }
 }
 
@@ -47,6 +49,7 @@ export function expenseToForm(e: FixedExpense): ExpenseFormValues {
     startPeriod: e.startPeriod,
     endPeriod: e.endPeriod ?? '',
     active: e.active,
+    units: e.units.map((u) => ({ unitId: u.id, share: String(u.share) })),
   }
 }
 
@@ -63,6 +66,7 @@ export function formToInput(f: ExpenseFormValues): Omit<CreateExpenseInput, 'end
     startPeriod: f.startPeriod,
     endPeriod: f.endPeriod || null, // null = sin fin (al editar, borra la fecha de fin)
     active: f.active,
+    units: f.units.map((u) => ({ unitId: u.unitId, share: Number(u.share) })),
   }
 }
 
@@ -79,5 +83,11 @@ export function validateExpenseForm(f: ExpenseFormValues): ExpenseFormErrors {
   if (!f.paymentMethodId) errors.paymentMethodId = 'Elegí un medio de pago'
   if (!f.startPeriod) errors.startPeriod = 'Elegí el mes de inicio'
   if (f.endPeriod && f.endPeriod < f.startPeriod) errors.endPeriod = 'No puede ser anterior al inicio'
+  if (f.units.length > 0) {
+    const shares = f.units.map((u) => Number(u.share))
+    const total = shares.reduce((a, b) => a + b, 0)
+    if (shares.some((v) => !(v > 0))) errors.units = 'Cada unidad tiene que tener un porcentaje mayor a 0'
+    else if (Math.abs(total - 100) > 0.01) errors.units = `El reparto tiene que sumar 100% (ahora suma ${Math.round(total * 100) / 100}%)`
+  }
   return errors
 }

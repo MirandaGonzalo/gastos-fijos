@@ -22,6 +22,13 @@ enum PaymentMode {
   MANUAL
 }
 
+// Tipo de unidad: a qué se asocian los gastos
+enum UnitType {
+  PROPERTY // casa, departamento, local
+  VEHICLE // auto, moto
+  OTHER
+}
+
 enum ChargeStatus {
   PENDING
   PAID
@@ -64,10 +71,38 @@ model FixedExpense {
   endPeriod       String? // "YYYY-MM": último mes (null = indefinido)
   active          Boolean         @default(true)
   charges         MonthlyCharge[]
+  units           ExpenseUnit[] // a qué unidades corresponde (ninguna = gasto general)
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 
   @@map("fixed_expenses")
+}
+
+// Unidad: una propiedad, un vehículo, etc. a la que se le asignan gastos
+model Unit {
+  id          Int           @id @default(autoincrement())
+  name        String        @unique
+  type        UnitType      @default(PROPERTY)
+  description String? // dirección, patente, lo que sirva para identificarla
+  expenses    ExpenseUnit[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@map("units")
+}
+
+// Relación muchos a muchos con un dato propio: qué porcentaje del gasto le corresponde a cada unidad.
+// Ej.: Disney+ 50% depto + 50% casa. El gasto se paga una sola vez; el reparto es para el análisis.
+model ExpenseUnit {
+  expenseId Int
+  expense   FixedExpense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  unitId    Int
+  unit      Unit         @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  share     Decimal      @db.Decimal(5, 2) // porcentaje, 0.01 a 100
+
+  @@id([expenseId, unitId])
+  @@index([unitId])
+  @@map("expense_units")
 }
 
 // Lo que pasa un mes concreto: monto real, vencimiento y si se pagó
