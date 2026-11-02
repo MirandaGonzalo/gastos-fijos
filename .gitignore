@@ -15,6 +15,9 @@ backend/src/generated/
 !.env.example
 
 # ── Archivos locales de esta máquina ──────────────────────────────────
+# Backups de la base (tienen datos reales)
+backups/
+
 # Marca del último build que usa iniciar-gastos.ps1
 .ultimo-build
 

@@ -2,8 +2,8 @@ import { Link } from 'react-router'
 import { useCharges } from '../hooks/useCharges'
 import { useExchangeRate } from '../context/exchangeRate'
 import { buildHomeSummary, relativeDays } from '../utils/homeSummary'
-import { addMonths, currentPeriod, daysFromToday, formatShortDate, formatWeekday } from '../utils/dates'
-import { formatMoney } from '../utils/format'
+import { addMonths, currentPeriod, daysFromToday, formatShortDate, formatWeekday, parseDate } from '../utils/dates'
+import { capitalizeFirst, formatMoney } from '../utils/format'
 import { AlertIcon, ArrowRightIcon, CalendarIcon, ChartIcon, ListIcon, PlusIcon } from '../components/icons'
 import type { MonthlyCharge } from '../types'
 
@@ -20,7 +20,7 @@ export function HomePage() {
   return (
     <div className="p-6 overflow-y-auto">
       <div className="max-w-5xl">
-        <p className="text-sm capitalize text-gray-400">{today}</p>
+        <p className="text-sm text-gray-400">{capitalizeFirst(today)}</p>
         <h1 className="mb-6 text-2xl font-semibold">Hola, Gonzalo</h1>
 
         {loading ? (
@@ -124,7 +124,7 @@ function HomeContent({ charges, now, rate }: { charges: MonthlyCharge[]; now: st
               {nextWeek.map((c) => (
                 <li key={c.id} className="flex items-center gap-3 py-2 text-sm">
                   <span className="w-14 shrink-0 text-gray-400">
-                    {formatWeekday(c.dueDate)} {formatShortDate(c.dueDate).slice(0, 2)}
+                    {formatWeekday(c.dueDate)} {parseDate(c.dueDate).getDate()}
                   </span>
                   <span className="flex-1 truncate">{c.expense.name}</span>
                   <span className="text-xs text-gray-500">{relativeDays(daysFromToday(c.dueDate))}</span>

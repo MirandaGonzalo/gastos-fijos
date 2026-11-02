@@ -5,7 +5,7 @@ import { useExchangeRate } from '../context/exchangeRate'
 import { buildMonthGrid, WEEKDAYS } from '../utils/calendar'
 import { getChargeStatus, TONE_CLASSES } from '../utils/chargeStatus'
 import { addMonths, currentPeriod, daysFromToday, formatPeriodLong, parseDate, todayIso } from '../utils/dates'
-import { formatMoney } from '../utils/format'
+import { capitalizeFirst, formatMoney } from '../utils/format'
 import { chargeToArs } from '../utils/stats'
 import { PAYMENT_MODE_INFO } from '../utils/paymentMode'
 import { ArrowRightIcon, ChevronLeftIcon, ChevronRightIcon } from '../components/icons'
@@ -56,7 +56,7 @@ export function CalendarPage() {
         <button onClick={() => goTo(addMonths(period, -1))} className="rounded-lg border border-gray-700 p-2 hover:bg-gray-800" aria-label="Mes anterior">
           <ChevronLeftIcon />
         </button>
-        <span className="w-40 text-center font-medium capitalize">{formatPeriodLong(period)}</span>
+        <span className="w-40 text-center font-medium">{capitalizeFirst(formatPeriodLong(period))}</span>
         <button onClick={() => goTo(addMonths(period, 1))} className="rounded-lg border border-gray-700 p-2 hover:bg-gray-800" aria-label="Mes siguiente">
           <ChevronRightIcon />
         </button>
@@ -136,8 +136,8 @@ export function CalendarPage() {
           <aside className="rounded-xl border border-gray-800 bg-gray-950/40 p-4 self-start">
             {selected && selected.startsWith(period) ? (
               <>
-                <h2 className="font-medium capitalize">
-                  {parseDate(selected).toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })}
+                <h2 className="font-medium">
+                  {capitalizeFirst(parseDate(selected).toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' }))}
                 </h2>
                 {selectedCharges.length === 0 ? (
                   <p className="mt-2 text-sm text-gray-500">No cae ningún pago este día.</p>

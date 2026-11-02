@@ -3,6 +3,8 @@ import { useCharges } from '../hooks/useCharges'
 import { getChargeStatus, type ChargeGroup } from '../utils/chargeStatus'
 import { addMonths, currentPeriod, formatPeriodLong } from '../utils/dates'
 import { RateNote } from '../components/RateNote'
+import { ChevronLeftIcon, ChevronRightIcon } from '../components/icons'
+import { capitalizeFirst } from '../utils/format'
 import { ChargeRow } from '../components/payments/ChargeRow'
 import { MonthSummary } from '../components/payments/MonthSummary'
 
@@ -30,14 +32,14 @@ export function PaymentsPage() {
   return (
     <div className="p-6 overflow-y-auto">
       {/* Encabezado con navegación de meses */}
-      <div className="mb-6 flex flex-wrap items-center gap-3">
+      <div className="mb-6 flex max-w-4xl flex-wrap items-center gap-3">
         <h1 className="text-2xl font-semibold mr-auto">Pagos</h1>
-        <button onClick={() => goTo(addMonths(period, -1))} className="rounded-lg border border-gray-700 px-3 py-1.5 hover:bg-gray-800" aria-label="Mes anterior">
-          ◀
+        <button onClick={() => goTo(addMonths(period, -1))} className="rounded-lg border border-gray-700 p-2 hover:bg-gray-800" aria-label="Mes anterior">
+          <ChevronLeftIcon />
         </button>
-        <span className="w-40 text-center font-medium capitalize">{formatPeriodLong(period)}</span>
-        <button onClick={() => goTo(addMonths(period, 1))} className="rounded-lg border border-gray-700 px-3 py-1.5 hover:bg-gray-800" aria-label="Mes siguiente">
-          ▶
+        <span className="w-40 text-center font-medium">{capitalizeFirst(formatPeriodLong(period))}</span>
+        <button onClick={() => goTo(addMonths(period, 1))} className="rounded-lg border border-gray-700 p-2 hover:bg-gray-800" aria-label="Mes siguiente">
+          <ChevronRightIcon />
         </button>
         {!isCurrent && (
           <button onClick={() => goTo(currentPeriod())} className="rounded-lg border border-gray-700 px-3 py-1.5 text-sm hover:bg-gray-800">
