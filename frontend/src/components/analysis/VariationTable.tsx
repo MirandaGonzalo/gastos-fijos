@@ -42,6 +42,7 @@ export function VariationTable({ variations }: { variations: ExpenseVariation[] 
                 <td className="py-2 px-2">
                   {v.name}
                   {v.currency === 'USD' && <span className="ml-1.5 text-xs text-gray-500">USD</span>}
+                  {v.units.length > 0 && <span className="block text-xs text-indigo-300/80">{v.units.join(' · ')}</span>}
                 </td>
                 <td className="py-2 px-2 text-right">
                   {formatMoney(v.first.amount, 'ARS')}

@@ -10,16 +10,23 @@ import { UpdateExpenseDto } from '../dto/update-expense.dto';
 import { ExpenseResponseDto } from '../dto/expense-response.dto';
 import { prismaErrorCode } from '../utils/prisma-errors';
 import { currentPeriod, dueDateFor } from '../utils/period';
+import {
+  expenseUnitsSelect,
+  toExpenseUnits,
+  validateUnitShares,
+} from '../utils/units';
 
-// Trae la categoría, el medio de pago y cuántos cargos pagados tiene (JOIN + COUNT)
+// Trae la categoría, el medio de pago, las unidades y cuántos cargos pagados tiene (JOIN + COUNT)
 const include = {
   category: { select: { id: true, name: true } },
   paymentMethod: { select: { id: true, name: true } },
+  units: expenseUnitsSelect,
   _count: { select: { charges: { where: { status: 'PAID' as const } } } },
 };
 
 type ExpenseWithRelations = {
   estimatedAmount: { toNumber(): number };
+  units: Parameters<typeof toExpenseUnits>[0];
   _count: { charges: number };
 };
 
@@ -50,10 +57,20 @@ export class ExpensesService {
         'endPeriod no puede ser anterior a startPeriod',
       );
     }
+    const { units = [], ...data } = dto;
+    validateUnitShares(units);
     try {
       // Los cargos mensuales no se crean acá: se generan al consultar /charges
       const expense = await this.prisma.fixedExpense.create({
-        data: dto,
+        data: {
+          ...data,
+          // Crea también las filas de la tabla intermedia (gasto <-> unidad)
+          units: {
+            createMany: {
+              data: units.map((u) => ({ unitId: u.unitId, share: u.share })),
+            },
+          },
+        },
         include,
       });
       return this.toResponse(expense);
@@ -64,6 +81,9 @@ export class ExpensesService {
 
   // Editar: los cambios impactan solo en lo pendiente; lo pagado nunca se toca
   async update(id: number, dto: UpdateExpenseDto): Promise<ExpenseResponseDto> {
+    const { units, ...fields } = dto;
+    if (units) validateUnitShares(units);
+
     const existing = await this.prisma.fixedExpense.findUnique({
       where: { id },
     });
@@ -111,9 +131,21 @@ export class ExpensesService {
     try {
       // Transacción: o se aplican todos los cambios, o ninguno
       const updated = await this.prisma.$transaction(async (tx) => {
+        // Unidades: si vienen, reemplazan la asignación completa
+        if (units) {
+          await tx.expenseUnit.deleteMany({ where: { expenseId: id } });
+          await tx.expenseUnit.createMany({
+            data: units.map((u) => ({
+              expenseId: id,
+              unitId: u.unitId,
+              share: u.share,
+            })),
+          });
+        }
+
         const expense = await tx.fixedExpense.update({
           where: { id },
-          data: { ...dto, endPeriod },
+          data: { ...fields, endPeriod },
           include,
         });
 
@@ -181,7 +213,7 @@ export class ExpensesService {
   private mapReferenceError(err: unknown) {
     if (prismaErrorCode(err) === 'P2003') {
       return new BadRequestException(
-        'La categoría o el medio de pago no existen',
+        'La categoría, el medio de pago o alguna de las unidades no existen',
       );
     }
     return err;
@@ -193,6 +225,7 @@ export class ExpensesService {
     return {
       ...rest,
       estimatedAmount: e.estimatedAmount.toNumber(),
+      units: toExpenseUnits(e.units),
       paidCount: _count.charges,
     };
   }

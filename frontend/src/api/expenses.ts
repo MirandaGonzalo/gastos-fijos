@@ -2,9 +2,10 @@ import type { FixedExpense } from '../types'
 import { apiFetch } from './client'
 
 // Lo que se manda al crear: sin id, y con endPeriod/active opcionales
-export type CreateExpenseInput = Omit<FixedExpense, 'id' | 'endPeriod' | 'active' | 'category' | 'paymentMethod' | 'paidCount'> & {
+export type CreateExpenseInput = Omit<FixedExpense, 'id' | 'endPeriod' | 'active' | 'category' | 'paymentMethod' | 'paidCount' | 'units'> & {
   categoryId: number
   paymentMethodId: number
+  units?: { unitId: number; share: number }[] // vacío = gasto general
   endPeriod?: string
   active?: boolean
 }

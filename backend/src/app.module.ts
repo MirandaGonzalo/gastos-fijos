@@ -6,6 +6,7 @@ import { ExpensesModule } from './modules/expenses.module';
 import { ChargesModule } from './modules/charges.module';
 import { CatalogsModule } from './modules/catalogs.module';
 import { ExchangeRatesModule } from './modules/exchange-rates.module';
+import { UnitsModule } from './modules/units.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { ExchangeRatesModule } from './modules/exchange-rates.module';
     ChargesModule,
     CatalogsModule,
     ExchangeRatesModule,
+    UnitsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

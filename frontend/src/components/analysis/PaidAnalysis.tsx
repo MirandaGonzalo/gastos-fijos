@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import { useCharges } from '../../hooks/useCharges'
-import { buildAnalysis, periodsInRange } from '../../utils/analysis'
+import { prorateCharges, type UnitFilter } from '../../utils/units'
+import { buildAnalysis, periodsInRange, type GroupBy } from '../../utils/analysis'
 import { currentPeriod, formatPeriodLong } from '../../utils/dates'
 import { formatMoney } from '../../utils/format'
 import { MonthlyCategoryChart } from './MonthlyCategoryChart'
@@ -13,8 +15,12 @@ function pct(value: number) {
 }
 
 // Todo lo que sale de los pagos reales de un rango de meses
-export function PaidAnalysis({ from, to }: { from: string; to: string }) {
+export function PaidAnalysis({ from, to, unitFilter }: { from: string; to: string; unitFilter: UnitFilter }) {
   const { charges, loading, error, reload } = useCharges(from, to)
+  const [groupBy, setGroupBy] = useState<GroupBy>('category')
+  // Agrupar por unidad solo tiene sentido mirando todas las unidades y si hay alguna asignada
+  const canGroupByUnit = unitFilter === 'all' && charges.some((c) => c.expense.units.length > 0)
+  const effectiveGroupBy: GroupBy = canGroupByUnit ? groupBy : 'category'
 
   if (loading) return <p className="text-gray-400">Cargando pagos...</p>
   if (error) {
@@ -28,7 +34,8 @@ export function PaidAnalysis({ from, to }: { from: string; to: string }) {
     )
   }
 
-  const a = buildAnalysis(charges, periodsInRange(from, to))
+  // Con una unidad elegida, cada gasto cuenta según su porcentaje (Disney+ 50% -> la mitad)
+  const a = buildAnalysis(prorateCharges(charges, unitFilter), periodsInRange(from, to), effectiveGroupBy)
 
   if (a.monthsWithPayments === 0) {
     return <p className="text-gray-400">No hay pagos registrados entre {formatPeriodLong(from)} y {formatPeriodLong(to)}.</p>
@@ -61,7 +68,30 @@ export function PaidAnalysis({ from, to }: { from: string; to: string }) {
         ))}
       </div>
 
-      <MonthlyCategoryChart categories={a.categories} months={a.months} currentPeriod={currentPeriod()} />
+      <div className="flex flex-col gap-2">
+        {canGroupByUnit && (
+          <div className="flex items-center gap-2 self-end text-sm">
+            <span className="text-gray-400">Agrupar por</span>
+            <div className="flex rounded-lg border border-gray-700 p-0.5">
+              {(['category', 'unit'] as const).map((g) => (
+                <button
+                  key={g}
+                  onClick={() => setGroupBy(g)}
+                  className={`rounded-md px-3 py-1 ${effectiveGroupBy === g ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white'}`}
+                >
+                  {g === 'category' ? 'Categoría' : 'Unidad'}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        <MonthlyCategoryChart
+          title={`Lo que pagaste cada mes, por ${effectiveGroupBy === 'category' ? 'categoría' : 'unidad'}`}
+          groups={a.groups}
+          months={a.months}
+          currentPeriod={currentPeriod()}
+        />
+      </div>
       <VariationTable variations={a.variations} />
 
       {a.missingRate > 0 && (

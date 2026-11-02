@@ -6,6 +6,7 @@ import {
   type PaymentModeCode,
 } from './create-expense.dto';
 import { CatalogItemResponseDto } from './catalog-item.dto';
+import { ExpenseUnitResponseDto } from './unit.dto';
 
 // Forma de un gasto (plantilla) tal como lo devuelve la API
 export class ExpenseResponseDto {
@@ -45,6 +46,9 @@ export class ExpenseResponseDto {
    * @example 3
    */
   paidCount: number;
+
+  /** Unidades asignadas con su reparto. Vacío = gasto general */
+  units: ExpenseUnitResponseDto[];
 
   createdAt: Date;
 

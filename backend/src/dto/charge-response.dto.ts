@@ -6,6 +6,7 @@ import {
   type PaymentModeCode,
 } from './create-expense.dto';
 import { CatalogItemResponseDto } from './catalog-item.dto';
+import { ExpenseUnitResponseDto } from './unit.dto';
 
 export const CHARGE_STATUSES = ['PENDING', 'PAID'] as const;
 export type ChargeStatusCode = (typeof CHARGE_STATUSES)[number];
@@ -29,6 +30,9 @@ class ChargeExpenseDto {
 
   /** @example 10 */
   debitDay: number;
+
+  /** Unidades del gasto con su reparto. Vacío = gasto general */
+  units: ExpenseUnitResponseDto[];
 }
 
 // Un cargo mensual: el gasto aplicado a un mes concreto

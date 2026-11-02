@@ -1,5 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import {
+  IsArray,
   IsBoolean,
   IsIn,
   IsInt,
@@ -12,6 +14,7 @@ import {
   Max,
   MaxLength,
   Min,
+  ValidateNested,
 } from 'class-validator';
 import { PERIOD_REGEX } from '../utils/period';
 
@@ -20,6 +23,23 @@ export type CurrencyCode = (typeof CURRENCIES)[number];
 
 export const PAYMENT_MODES = ['AUTOMATIC', 'MANUAL'] as const;
 export type PaymentModeCode = (typeof PAYMENT_MODES)[number];
+
+// Unidad a la que se asigna el gasto y qué porcentaje le corresponde
+export class ExpenseUnitDto {
+  /** @example 1 */
+  @IsInt()
+  @Min(1)
+  unitId: number;
+
+  /**
+   * Porcentaje del gasto para esta unidad. La suma de todas tiene que dar 100
+   * @example 50
+   */
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0.01)
+  @Max(100)
+  share: number;
+}
 
 export class CreateExpenseDto {
   /**
@@ -98,4 +118,14 @@ export class CreateExpenseDto {
   @IsOptional()
   @IsBoolean()
   active?: boolean;
+
+  /**
+   * Unidades a las que corresponde el gasto, con su reparto (tiene que sumar 100).
+   * Vacío o sin enviar = gasto general, sin unidad. Al editar, reemplaza la asignación completa
+   */
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ExpenseUnitDto)
+  units?: ExpenseUnitDto[];
 }

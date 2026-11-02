@@ -85,6 +85,7 @@ jobs:
           echo "Categorías:";   curl -sf http://localhost:3100/categories | head -c 300; echo
           echo "Gastos:";       curl -sf http://localhost:3100/expenses | head -c 300; echo
           echo "Cargos del mes:"; curl -sf http://localhost:3100/charges | head -c 300; echo
+          echo "Unidades:";     curl -sf http://localhost:3100/units | head -c 300; echo
           curl -sf http://localhost:3100/docs > /dev/null && echo "Swagger OK"
 
       - name: Log de la API (si algo falló)
